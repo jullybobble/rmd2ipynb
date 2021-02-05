@@ -1,0 +1,20 @@
+Package: rmd2ipynb
+Title: RMarkdown 2 IPyNB
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Julien",
+           family = "Gaugaz",
+           role = c("aut", "cre"),
+           email = "julien.gaugaz@gmail.com")
+Description: Convert RMarkdown HTML notebooks to Jupyter notebooks
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Imports:
+  magrittr,
+  pander,
+  readr,
+  rmarkdown,
+  xml2
