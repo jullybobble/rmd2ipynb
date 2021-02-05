@@ -1,6 +1,6 @@
 Package: rmd2ipynb
 Title: RMarkdown 2 IPyNB
-Version: 0.0.0.9000
+Version: 0.1
 Authors@R: 
     person(given = "Julien",
            family = "Gaugaz",
