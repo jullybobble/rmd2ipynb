@@ -36,3 +36,13 @@ parse_pagedtable_json <- function(json) {
     with(label) %>%
     set_names(tab, .)
 }
+
+#' @importFrom xml2 read_html
+#' @importFrom readr write_lines
+parse_html <- function(html_text) {
+  html_file <- tempfile(fileext = ".html")
+  on.exit(file.remove(html_file))
+  html_text %>% write_lines(html_file)
+  read_html(html_file)
+
+}

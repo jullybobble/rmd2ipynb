@@ -6,7 +6,9 @@
 \usage{
 html_nb_to_ipynb(
   html_notebook_file,
-  ipynb_file = str_replace(html_notebook_file, "\\\\.nb\\\\.html^", ".ipynb")
+  ipynb_file = str_replace(html_notebook_file, "\\\\.nb\\\\.html$", ".ipynb"),
+  verbose = F,
+  remove_html_comments = T
 )
 }
 \arguments{

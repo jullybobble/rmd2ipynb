@@ -16,24 +16,36 @@
 #' @importFrom purrr map map_df
 #' @importFrom stringr str_replace
 #' @importFrom rmarkdown parse_html_notebook
-#' @importFrom xml2 read_html
+#' @importFrom xml2 read_html xml_find_first
+#' @importFrom rvest html_text
 #' @import dplyr tidyr
-html_nb_to_ipynb <- function(html_notebook_file, ipynb_file = str_replace(html_notebook_file, "\\.nb\\.html^", ".ipynb")) {
+html_nb_to_ipynb <- function(html_notebook_file, ipynb_file = str_replace(html_notebook_file, "\\.nb\\.html$", ".ipynb"), verbose = F, remove_html_comments = T) {
   stopifnot(file.exists(html_notebook_file))
-  json <- html_notebook_file %>%
-    parse_html_notebook() %>%
+  parsed <- parse_html_notebook(html_notebook_file)
+  title <- parsed$header %>% parse_html() %>% xml_find_first("/html/head/title") %>% html_text()
+  json <- parsed %>%
     rmd_annotations() %>%
-    ipynb_from_rmd()
+    ipynb_from_rmd(title, remove_html_comments)
 
   write_file(json, ipynb_file)
+  if(verbose) {
+    message("wrote file ", ipynb_file)
+  }
   invisible(json)
 }
 
 #' @importFrom jsonlite toJSON
-ipynb_from_rmd <- function(annotations) {
+ipynb_from_rmd <- function(annotations, title = NULL, remove_html_comments = T) {
   cells <- annotations %>%
     rowwise %>%
-    group_map( ~ ipynb_cell_from_rmd_part(.x$label, .x$source, .x$outputs))
+    group_map( ~ ipynb_cell_from_rmd_part(.x$label, .x$source, .x$outputs, remove_html_comments)) %>%
+    discard(is.null)
+
+  title_cell <- if(is.null(title)) {
+    list()
+  } else {
+    list(ipynb_cell_markdown(paste("#", title)))
+  }
 
   list(
     nbformat = 4,
@@ -53,7 +65,7 @@ ipynb_from_rmd <- function(annotations) {
         version = paste(version$major, sep = ".", version$minor)
       )
     ),
-    cells = cells
+    cells = c(title_cell, cells)
   ) %>%
     toJSON(auto_unbox = T,
            pretty = T,
@@ -62,14 +74,22 @@ ipynb_from_rmd <- function(annotations) {
 
 #' @importFrom xml2 xml_find_first
 #' @importFrom rvest html_text html_attr
-#' @importFrom stringr str_detect str_remove
-ipynb_cell_from_rmd_part <- function(label, source, outputs) {
+#' @importFrom stringr str_detect str_remove str_remove_all
+#' @importFrom purrr discard
+ipynb_cell_from_rmd_part <- function(label, source, outputs, remove_html_comments) {
   if (label == "text") {
     if(source %>% str_detect('^<div id="rmd-source-code">')) {
       NULL
     } else {
       md <- html_to_md(source)
-      ipynb_cell_markdown(md)
+      if(remove_html_comments) {
+        md <- str_remove_all(md, "(?m)^:::.*\n")
+      }
+      if(str_detect(md, "^\\s*$")) {
+        NULL
+      } else {
+        ipynb_cell_markdown(md)
+      }
     }
   } else if (label == "chunk") {
     code <- if(source == "") {
@@ -80,7 +100,8 @@ ipynb_cell_from_rmd_part <- function(label, source, outputs) {
     out <- if(!is.null(outputs[[1]])) {
       outputs[[1]] %>%
         rowwise %>%
-        group_map( ~ ipynb_cell_from_rmd_part(.x$label, .x$source, .x$outputs))
+        group_map( ~ ipynb_cell_from_rmd_part(.x$label, .x$source, .x$outputs, remove_html_comments)) %>%
+        discard(is.null)
     } else {
       NULL
     }
